@@ -11,7 +11,8 @@ Skyweb - lua скрипт для SA-MP. Предназначен для откр
 
 Настройки:
 
-<img width="335" height="428" alt="{1683F2D3-7FDC-4C81-AE2F-0916F83FC595}" src="https://github.com/user-attachments/assets/55f2e3df-4162-47f2-afce-7335e648557d" />
+<img width="337" height="427" alt="{9ADDE9A2-6F69-475F-A97E-DD7A66F24988}" src="https://github.com/user-attachments/assets/c4c492a5-7940-4c80-a170-5368f446e6f8" />
+
 
 
 
