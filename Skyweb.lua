@@ -1,9 +1,9 @@
--- SkyWeb_v1.0.lua
+-- SkyWeb_v1.1.lua
 -- SA-MP Web Browser by Shaolin Skywalker (Full Version)
 
 script_name("SkyWeb")
 script_author("Shaolin Skywalker")
-script_version("1.0")
+script_version("1.1")
 
 local imgui = require 'imgui'
 local encoding = require 'encoding'
@@ -14,8 +14,29 @@ local sw, sh = getScreenResolution()
 local main_menu = imgui.ImBool(false)
 
 -- Версия и GitHub репозиторий
-local SCRIPT_VERSION = "1.0"
+local SCRIPT_VERSION = "1.1"
 local GITHUB_REPO = "shukillua/skyweb"
+
+-- Конфиг директория
+local CONFIG_DIR = "moonloader/config/skyweb/"
+
+-- Функция создания директории
+local function ensureConfigDir()
+    local path = "moonloader/config/"
+    local full_path = CONFIG_DIR
+    
+    -- Проверяем и создаем папку config если нет
+    local config_exists = os.rename("moonloader/config", "moonloader/config") 
+    if not config_exists then
+        os.execute('mkdir "moonloader/config"')
+    end
+    
+    -- Проверяем и создаем папку skyweb если нет
+    local skyweb_exists = os.rename(CONFIG_DIR, CONFIG_DIR)
+    if not skyweb_exists then
+        os.execute('mkdir "' .. CONFIG_DIR:sub(1, -2) .. '"')
+    end
+end
 
 -- Стандартные ссылки
 local links = {
@@ -73,26 +94,32 @@ local current_color_index = 1
 
 -- Сохранение цвета
 local function saveColor()
-    local file = io.open("moonloader/config/skyweb/skyweb_color.txt", "w")
+    ensureConfigDir()
+    local file = io.open(CONFIG_DIR .. "skyweb_color.txt", "w")
     if file then
         file:write(current_color_index)
         file:close()
+        return true
     end
+    return false
 end
 
 -- Загрузка цвета
 local function loadColor()
-    local file = io.open("moonloader/config/skyweb/skyweb_color.txt", "r")
+    ensureConfigDir()
+    local file = io.open(CONFIG_DIR .. "skyweb_color.txt", "r")
     if file then
         local color = file:read("*all")
         if color and color ~= "" then
-            current_color_index = tonumber(color) or 1
-            if current_color_index < 1 or current_color_index > #color_themes then 
-                current_color_index = 1 
+            local num = tonumber(color)
+            if num and num >= 1 and num <= #color_themes then
+                current_color_index = num
             end
         end
         file:close()
+        return true
     end
+    return false
 end
 
 -- Применение цвета
@@ -164,18 +191,22 @@ end
 
 -- Сохранение ссылок
 local function saveUserLinks()
-    local file = io.open("moonloader/config/skyweb/skyweb_links.txt", "w")
+    ensureConfigDir()
+    local file = io.open(CONFIG_DIR .. "skyweb_links.txt", "w")
     if file then
         for _, link in ipairs(user_links) do
             file:write(link.name .. "|||" .. link.url .. "\n")
         end
         file:close()
+        return true
     end
+    return false
 end
 
 -- Загрузка ссылок
 local function loadUserLinks()
-    local file = io.open("moonloader/config/skyweb/skyweb_links.txt", "r")
+    ensureConfigDir()
+    local file = io.open(CONFIG_DIR .. "skyweb_links.txt", "r")
     if file then
         for line in file:lines() do
             local name, url = line:match("(.+)|||(.+)")
@@ -184,7 +215,9 @@ local function loadUserLinks()
             end
         end
         file:close()
+        return true
     end
+    return false
 end
 
 -- ФУНКЦИЯ РЕДАКТИРОВАНИЯ ССЫЛОК
@@ -623,8 +656,15 @@ function main()
     repeat wait(100) until isSampAvailable()
     wait(1000)
     
+    -- Создаем папку для конфигов
+    ensureConfigDir()
+    
+    -- Загружаем данные
     loadUserLinks()
     loadColor()
+    
+    -- Применяем тему при старте
+    applyColor(current_color_index)
     
     sampAddChatMessage("{00FFFF}[SkyWeb v" .. SCRIPT_VERSION .. "] {00FAAA} Скрипт активирован, для открытия - /skyweb. by Shaolin Skywalker", -1)
     
