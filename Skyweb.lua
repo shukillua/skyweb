@@ -13,6 +13,14 @@ u8 = encoding.UTF8
 local sw, sh = getScreenResolution()
 local main_menu = imgui.ImBool(false)
 
+-- Версия и GitHub репозиторий
+local SCRIPT_VERSION = "1.0"
+local GITHUB_REPO = "shukillua/skyweb"
+local update_available = false
+local latest_version = ""
+local update_checking = false
+local update_checked = false
+
 -- Стандартные ссылки
 local links = {
     {name = "YouTube", url = "https://www.youtube.com"},
@@ -138,6 +146,46 @@ function applyColor(theme_id)
         colors[clr.CloseButton] = ImVec4(0.60, 0.59, 0.58, 0.30)
         colors[clr.CloseButtonHovered] = ImVec4(0.60, 0.59, 0.58, 0.60)
     end
+end
+
+-- Функция проверки обновлений (асинхронная, без сворачивания игры)
+function checkForUpdates()
+    if update_checking or update_checked then return end
+    update_checking = true
+    
+    -- Запускаем в отдельном потоке через coroutine
+    local thread = coroutine.create(function()
+        -- Небольшая задержка чтобы игра не зависала
+        wait(100)
+        
+        -- Используем системный вызов с подавлением вывода
+        local success, result = pcall(function()
+            -- Используем curl если есть, или wget, или powershell в фоне
+            local cmd = 'powershell -NoProfile -ExecutionPolicy Bypass -Command "try { (Invoke-WebRequest -Uri ' .. UPDATE_CHECK_URL .. ' -UseBasicParsing -TimeoutSec 3).Content } catch { exit 1 }" 2>nul'
+            local handle = io.popen(cmd)
+            if handle then
+                local data = handle:read("*all")
+                handle:close()
+                return data
+            end
+        end)
+        
+        if success and result and result ~= "" then
+            local version_match = result:match('"tag_name"%s*:%s*"([^"]+)"')
+            if version_match then
+                latest_version = version_match:gsub("^v", "")
+                if latest_version > SCRIPT_VERSION then
+                    update_available = true
+                    sampAddChatMessage("{FFA500}[SkyWeb] Доступна новая версия: v" .. latest_version, -1)
+                    sampAddChatMessage("{FFA500}[SkyWeb] Скачайте: https://github.com/" .. GITHUB_REPO .. "/releases/latest", -1)
+                end
+            end
+        end
+        update_checking = false
+        update_checked = true
+    end)
+    
+    coroutine.resume(thread)
 end
 
 -- Безопасное открытие URL
@@ -514,15 +562,44 @@ function imgui.OnDrawFrame()
     -- Окно настроек
     if settings_window.v then
         applyColor(current_color_index)
-        imgui.SetNextWindowSize(imgui.ImVec2(320, 420), imgui.Cond.FirstUseEver)
+        imgui.SetNextWindowSize(imgui.ImVec2(340, 480), imgui.Cond.FirstUseEver)
         imgui.SetNextWindowPos(imgui.ImVec2(sw/2, sh/2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
         imgui.Begin(u8"Настройки SkyWeb", settings_window, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse)
         
         if color_themes[current_color_index].is_dark then
-            imgui.TextColored(imgui.ImVec4(0.8, 0.6, 1.0, 1.0), u8("SkyWeb v1.0"))
+            imgui.TextColored(imgui.ImVec4(0.8, 0.6, 1.0, 1.0), u8("SkyWeb v" .. SCRIPT_VERSION))
         else
-            imgui.TextColored(imgui.ImVec4(0.3, 0.1, 0.5, 1.0), u8("SkyWeb v1.0"))
+            imgui.TextColored(imgui.ImVec4(0.3, 0.1, 0.5, 1.0), u8("SkyWeb v" .. SCRIPT_VERSION))
         end
+        
+        -- Проверка обновлений
+        if update_available then
+            if color_themes[current_color_index].is_dark then
+                imgui.TextColored(imgui.ImVec4(1.0, 0.8, 0.2, 1.0), u8("[!] Доступно обновление: v" .. latest_version))
+            else
+                imgui.TextColored(imgui.ImVec4(1.0, 0.5, 0.0, 1.0), u8("[!] Доступно обновление: v" .. latest_version))
+            end
+            if imgui.Button(u8("Скачать обновление"), imgui.ImVec2(310, 28)) then
+                openUrl("https://github.com/" .. GITHUB_REPO .. "/releases/latest")
+            end
+        else
+            if color_themes[current_color_index].is_dark then
+                imgui.TextColored(imgui.ImVec4(0.6, 1.0, 0.6, 1.0), u8("[OK] Используется последняя версия"))
+            else
+                imgui.TextColored(imgui.ImVec4(0.0, 0.5, 0.0, 1.0), u8("[OK] Используется последняя версия"))
+            end
+        end
+        
+        if imgui.Button(u8("Проверить обновления"), imgui.ImVec2(310, 28)) then
+            if not update_checking then
+                update_checked = false
+                sampAddChatMessage("{FFFF00}[SkyWeb] Проверка обновлений...", -1)
+                checkForUpdates()
+            else
+                sampAddChatMessage("{FFFF00}[SkyWeb] Проверка уже выполняется...", -1)
+            end
+        end
+        
         imgui.Separator()
         
         if color_themes[current_color_index].is_dark then
@@ -532,7 +609,7 @@ function imgui.OnDrawFrame()
         end
         
         local theme_name = color_themes[current_color_index].name
-        if imgui.Button(u8("Сменить тему: " .. theme_name), imgui.ImVec2(290, 28)) then
+        if imgui.Button(u8("Сменить тему: " .. theme_name), imgui.ImVec2(310, 28)) then
             current_color_index = current_color_index + 1
             if current_color_index > #color_themes then
                 current_color_index = 1
@@ -582,17 +659,19 @@ function imgui.OnDrawFrame()
             imgui.TextColored(imgui.ImVec4(0.2, 0.3, 0.5, 1.0), u8("Команды:"))
         end
         imgui.BulletText(u8("/skyweb - Открыть меню"))
+        imgui.BulletText(u8("/sw - Открыть меню"))
         imgui.BulletText(u8("/sname [название] - Имя ссылки"))
         imgui.BulletText(u8("/surl [ссылка] - URL ссылки"))
+        imgui.BulletText(u8("/update - Проверить обновления"))
         
         imgui.Separator()
         
-        if imgui.Button(u8("Связь с автором"), imgui.ImVec2(290, 30)) then
+        if imgui.Button(u8("Связь с автором"), imgui.ImVec2(310, 30)) then
             openUrl("https://guns.lol/shukillua")
         end
         
         imgui.Spacing()
-        imgui.SetCursorPosX(100)
+        imgui.SetCursorPosX(110)
         if imgui.Button(u8("Закрыть"), imgui.ImVec2(120, 30)) then
             settings_window.v = false
         end
@@ -609,12 +688,17 @@ function main()
     loadUserLinks()
     loadColor()
     
-    sampAddChatMessage("{00FFFF}[SkyWeb v1.0] {00FAAA} Скрипт активирован, для открытия - /skyweb. by Shaolin Skywalker", -1)
+    sampAddChatMessage("{00FFFF}[SkyWeb v" .. SCRIPT_VERSION .. "] {00FAAA} Скрипт активирован, для открытия - /skyweb. by Shaolin Skywalker", -1)
+    sampAddChatMessage("{00FFFF}[SkyWeb] {FFFFFF}Репозиторий: https://github.com/" .. GITHUB_REPO, -1)
+    
+    -- Проверка обновлений в фоне без зависания
+    wait(3000)
+    checkForUpdates()
     
     sampRegisterChatCommand("skyweb", cmd_imgui)
     sampRegisterChatCommand("sw", cmd_imgui)
     
-   -- Команды для добавления ссылок
+    -- Команды для добавления ссылок
     sampRegisterChatCommand("sname", function(arg)
         if arg and arg ~= "" then
             custom_name = arg
@@ -675,4 +759,22 @@ function main()
     sampRegisterChatCommand("ecancel", function()
         cancelEdit()
     end)
+    
+    sampRegisterChatCommand("update", function()
+        update_checked = false
+        checkForUpdates()
+    end)
+    
+    -- Таймер для периодической проверки обновлений (каждые 30 минут)
+    local update_timer = 0
+    while true do
+        wait(60000)
+        update_timer = update_timer + 1
+        if update_timer >= 30 then
+            update_timer = 0
+            if not update_checking and not update_checked then
+                checkForUpdates()
+            end
+        end
+    end
 end
