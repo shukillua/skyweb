@@ -22,16 +22,11 @@ local CONFIG_DIR = "moonloader/config/skyweb/"
 
 -- Функция создания директории
 local function ensureConfigDir()
-    local path = "moonloader/config/"
-    local full_path = CONFIG_DIR
-    
-    -- Проверяем и создаем папку config если нет
     local config_exists = os.rename("moonloader/config", "moonloader/config") 
     if not config_exists then
         os.execute('mkdir "moonloader/config"')
     end
     
-    -- Проверяем и создаем папку skyweb если нет
     local skyweb_exists = os.rename(CONFIG_DIR, CONFIG_DIR)
     if not skyweb_exists then
         os.execute('mkdir "' .. CONFIG_DIR:sub(1, -2) .. '"')
@@ -60,12 +55,10 @@ local preset_links = {
     {name = "SoundCloud", url = "https://soundcloud.com"},
 }
 
--- Пользовательские ссылки
 local user_links = {}
 
--- СИСТЕМА ЦВЕТОВ (ТЕМНЫЕ + СВЕТЛЫЕ ТЕМЫ)
+-- Цвета
 local color_themes = {
-    -- ТЕМНЫЕ ТЕМЫ (10 шт)
     {name = "Классический (Темный)", r = 0.10, g = 0.09, b = 0.12, is_dark = true},
     {name = "Темно-Зеленый", r = 0.05, g = 0.35, b = 0.05, is_dark = true},
     {name = "Темно-Красный", r = 0.35, g = 0.05, b = 0.05, is_dark = true},
@@ -76,8 +69,6 @@ local color_themes = {
     {name = "Темно-Розовый", r = 0.35, g = 0.05, b = 0.20, is_dark = true},
     {name = "Темно-Золотой", r = 0.35, g = 0.25, b = 0.05, is_dark = true},
     {name = "Темный Киберпанк", r = 0.20, g = 0.05, b = 0.40, is_dark = true},
-    
-    -- СВЕТЛЫЕ ТЕМЫ (10 шт)
     {name = "Светлый (Классический)", r = 0.90, g = 0.88, b = 0.85, is_dark = false},
     {name = "Светло-Зеленый", r = 0.85, g = 0.95, b = 0.85, is_dark = false},
     {name = "Светло-Красный", r = 0.95, g = 0.85, b = 0.85, is_dark = false},
@@ -92,7 +83,7 @@ local color_themes = {
 
 local current_color_index = 1
 
--- Сохранение цвета
+-- Сохранение/загрузка цвета
 local function saveColor()
     ensureConfigDir()
     local file = io.open(CONFIG_DIR .. "skyweb_color.txt", "w")
@@ -104,7 +95,6 @@ local function saveColor()
     return false
 end
 
--- Загрузка цвета
 local function loadColor()
     ensureConfigDir()
     local file = io.open(CONFIG_DIR .. "skyweb_color.txt", "r")
@@ -171,7 +161,7 @@ function applyColor(theme_id)
     end
 end
 
--- Безопасное открытие URL
+-- Открытие URL
 function openUrl(url)
     if not url or url == "" then 
         sampAddChatMessage("{FF0000}[SkyWeb] Неверный URL!", -1)
@@ -189,7 +179,7 @@ function openUrl(url)
     end)
 end
 
--- Сохранение ссылок
+-- Сохранение/загрузка ссылок
 local function saveUserLinks()
     ensureConfigDir()
     local file = io.open(CONFIG_DIR .. "skyweb_links.txt", "w")
@@ -203,7 +193,6 @@ local function saveUserLinks()
     return false
 end
 
--- Загрузка ссылок
 local function loadUserLinks()
     ensureConfigDir()
     local file = io.open(CONFIG_DIR .. "skyweb_links.txt", "r")
@@ -220,18 +209,43 @@ local function loadUserLinks()
     return false
 end
 
--- ФУНКЦИЯ РЕДАКТИРОВАНИЯ ССЫЛОК
+-- Переменные для контекстного меню
+local context_open = false
+local context_index = nil
+local context_x = 0
+local context_y = 0
+
+-- Переменные для редактирования
 local edit_mode = false
 local edit_index = nil
 local edit_name = ""
 local edit_url = ""
 
+-- Переменные для подтверждения удаления
+local delete_confirm_open = false
+local delete_index = nil
+
+-- Функции контекстного меню
+function openContext(index, x, y)
+    context_index = index
+    context_x = x
+    context_y = y
+    context_open = true
+end
+
+function closeContext()
+    context_open = false
+    context_index = nil
+end
+
+-- Функции редактирования
 function startEdit(index)
     if index and index >= 1 and index <= #user_links then
         edit_mode = true
         edit_index = index
         edit_name = user_links[index].name
         edit_url = user_links[index].url
+        closeContext()
         sampAddChatMessage("{FFFF00}[SkyWeb] Редактирование: " .. user_links[index].name, -1)
         sampAddChatMessage("{FFFF00}[SkyWeb] Введите /ename [новое имя] или /eurl [новый URL]", -1)
         sampAddChatMessage("{FFFF00}[SkyWeb] Для сохранения введите /esave", -1)
@@ -281,10 +295,42 @@ function cancelEdit()
     end
 end
 
--- Открыть/закрыть меню
+-- Функции для удаления с подтверждением
+function confirmDelete(index)
+    if index and index >= 1 and index <= #user_links then
+        delete_index = index
+        closeContext()
+        delete_confirm_open = true
+    end
+end
+
+function executeDelete()
+    if delete_index and delete_index >= 1 and delete_index <= #user_links then
+        local name = user_links[delete_index].name
+        table.remove(user_links, delete_index)
+        saveUserLinks()
+        sampAddChatMessage("{00FF00}[SkyWeb] Ссылка удалена: " .. name, -1)
+        delete_confirm_open = false
+        delete_index = nil
+        if edit_mode and edit_index == delete_index then
+            cancelEdit()
+        end
+    end
+end
+
+function cancelDelete()
+    delete_confirm_open = false
+    delete_index = nil
+end
+
+-- Команда открытия меню
 function cmd_imgui()
     main_menu.v = not main_menu.v
     imgui.Process = main_menu.v
+    if not main_menu.v then
+        closeContext()
+        delete_confirm_open = false
+    end
 end
 
 -- Окна
@@ -305,13 +351,13 @@ function imgui.OnDrawFrame()
     
     local windowHeight = 300
     if #user_links > 0 then
-        windowHeight = windowHeight + 40 + math.ceil(#user_links / 2) * 38
+        windowHeight = windowHeight + 40 + math.ceil(#user_links / 2) * 35
     end
     if edit_mode then
         windowHeight = windowHeight + 110
     end
     
-    imgui.SetNextWindowSize(imgui.ImVec2(330, windowHeight), imgui.Cond.FirstUseEver)
+    imgui.SetNextWindowSize(imgui.ImVec2(300, windowHeight), imgui.Cond.FirstUseEver)
     imgui.SetNextWindowPos(imgui.ImVec2(sw/2, sh/2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
     imgui.Begin(u8"SkyWeb", main_menu, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse)
 
@@ -358,38 +404,22 @@ function imgui.OnDrawFrame()
         
         for i, link in ipairs(user_links) do
             if i % 2 == 1 then
-                if imgui.Button(u8(link.name), imgui.ImVec2(90, 28)) then
+                if imgui.Button(u8(link.name), imgui.ImVec2(140, 28)) then
                     openUrl(link.url)
                 end
-                imgui.SameLine()
-                if imgui.Button(u8("Изм."), imgui.ImVec2(28, 28)) then
-                    startEdit(i)
+                if i < #user_links then 
+                    imgui.SameLine() 
                 end
-                imgui.SameLine()
-                if imgui.Button(u8("X"), imgui.ImVec2(20, 28)) then
-                    table.remove(user_links, i)
-                    saveUserLinks()
-                    if edit_mode and edit_index == i then
-                        cancelEdit()
-                    end
-                end
-                if i < #user_links then imgui.SameLine() end
             else
-                if imgui.Button(u8(link.name), imgui.ImVec2(90, 28)) then
+                if imgui.Button(u8(link.name), imgui.ImVec2(140, 28)) then
                     openUrl(link.url)
                 end
-                imgui.SameLine()
-                if imgui.Button(u8("Изм."), imgui.ImVec2(28, 28)) then
-                    startEdit(i)
-                end
-                imgui.SameLine()
-                if imgui.Button(u8("X"), imgui.ImVec2(20, 28)) then
-                    table.remove(user_links, i)
-                    saveUserLinks()
-                    if edit_mode and edit_index == i then
-                        cancelEdit()
-                    end
-                end
+            end
+            
+            -- Обработка ПКМ для контекстного меню
+            if imgui.IsItemHovered() and imgui.IsMouseClicked(1) then
+                local mouse_pos = imgui.GetMousePos()
+                openContext(i, mouse_pos.x, mouse_pos.y)
             end
         end
     end
@@ -401,6 +431,67 @@ function imgui.OnDrawFrame()
         show_custom = false
         custom_name = ""
         custom_url = ""
+    end
+    
+    -- Контекстное меню
+    if context_open and context_index then
+        applyColor(current_color_index)
+        imgui.SetNextWindowPos(imgui.ImVec2(context_x, context_y), imgui.Cond.FirstUseEver)
+        imgui.SetNextWindowSize(imgui.ImVec2(180, 80), imgui.Cond.FirstUseEver)
+        imgui.Begin(u8"##context_menu", context_open, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoTitleBar)
+        
+        if imgui.Button(u8("Редактировать"), imgui.ImVec2(160, 28)) then
+            startEdit(context_index)
+        end
+        
+        if imgui.Button(u8("Удалить"), imgui.ImVec2(160, 28)) then
+            confirmDelete(context_index)
+        end
+        
+        imgui.End()
+        
+        if imgui.IsMouseClicked(0) or imgui.IsMouseClicked(1) then
+            local mouse_pos = imgui.GetMousePos()
+            if mouse_pos.x < context_x or mouse_pos.x > context_x + 180 or 
+               mouse_pos.y < context_y or mouse_pos.y > context_y + 80 then
+                closeContext()
+            end
+        end
+    end
+    
+    -- Окно подтверждения удаления
+    if delete_confirm_open then
+        applyColor(current_color_index)
+        imgui.SetNextWindowSize(imgui.ImVec2(280, 120), imgui.Cond.FirstUseEver)
+        imgui.SetNextWindowPos(imgui.ImVec2(sw/2, sh/2 + 60), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+        imgui.Begin(u8"Подтверждение удаления", delete_confirm_open, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse)
+        
+        if color_themes[current_color_index].is_dark then
+            imgui.TextColored(imgui.ImVec4(1.0, 0.6, 0.6, 1.0), u8("Вы уверены что хотите удалить ссылку?"))
+        else
+            imgui.TextColored(imgui.ImVec4(0.8, 0.2, 0.2, 1.0), u8("Вы уверены что хотите удалить ссылку?"))
+        end
+        
+        if delete_index and delete_index >= 1 and delete_index <= #user_links then
+            if color_themes[current_color_index].is_dark then
+                imgui.TextColored(imgui.ImVec4(1.0, 0.8, 0.2, 1.0), u8(user_links[delete_index].name))
+            else
+                imgui.TextColored(imgui.ImVec4(0.8, 0.4, 0.0, 1.0), u8(user_links[delete_index].name))
+            end
+        end
+        
+        imgui.Separator()
+        
+        imgui.SetCursorPosX(40)
+        if imgui.Button(u8("Удалить"), imgui.ImVec2(90, 28)) then
+            executeDelete()
+        end
+        imgui.SameLine()
+        if imgui.Button(u8("Отмена"), imgui.ImVec2(90, 28)) then
+            cancelDelete()
+        end
+        
+        imgui.End()
     end
     
     if edit_mode then
@@ -431,11 +522,13 @@ function imgui.OnDrawFrame()
             imgui.TextColored(imgui.ImVec4(0.6, 1.0, 0.6, 1.0), u8("/ename [новое имя]"))
             imgui.TextColored(imgui.ImVec4(0.6, 1.0, 0.6, 1.0), u8("/eurl [новый URL]"))
             imgui.TextColored(imgui.ImVec4(1.0, 0.8, 0.2, 1.0), u8("/esave - сохранить изменения"))
+            imgui.TextColored(imgui.ImVec4(1.0, 0.8, 0.2, 1.0), u8("/ecancel - отменить"))
         else
             imgui.TextColored(imgui.ImVec4(0.2, 0.3, 0.5, 1.0), u8("Команды в чате:"))
             imgui.TextColored(imgui.ImVec4(0.0, 0.5, 0.0, 1.0), u8("/ename [новое имя]"))
             imgui.TextColored(imgui.ImVec4(0.0, 0.5, 0.0, 1.0), u8("/eurl [новый URL]"))
             imgui.TextColored(imgui.ImVec4(0.8, 0.4, 0.0, 1.0), u8("/esave - сохранить изменения"))
+            imgui.TextColored(imgui.ImVec4(0.8, 0.4, 0.0, 1.0), u8("/ecancel - отменить"))
         end
     end
     
@@ -590,12 +683,13 @@ function imgui.OnDrawFrame()
         imgui.Separator()
         
         if color_themes[current_color_index].is_dark then
-            imgui.TextColored(imgui.ImVec4(0.6, 1.0, 0.6, 1.0), u8("Редактирование ссылок:"))
+            imgui.TextColored(imgui.ImVec4(0.6, 1.0, 0.6, 1.0), u8("Управление ссылками:"))
         else
-            imgui.TextColored(imgui.ImVec4(0.0, 0.5, 0.0, 1.0), u8("Редактирование ссылок:"))
+            imgui.TextColored(imgui.ImVec4(0.0, 0.5, 0.0, 1.0), u8("Управление ссылками:"))
         end
-        imgui.TextWrapped(u8("Нажмите Изм. рядом со ссылкой для редактирования."))
-        imgui.TextWrapped(u8("Используйте команды для изменения:"))
+        imgui.TextWrapped(u8("Нажмите ПКМ на ссылку для вызова меню."))
+        imgui.TextWrapped(u8("Доступные действия: Редактировать, Удалить"))
+        imgui.TextWrapped(u8("Для редактирования используйте команды:"))
         if color_themes[current_color_index].is_dark then
             imgui.TextColored(imgui.ImVec4(0.6, 0.8, 1.0, 1.0), u8("/ename [новое имя]"))
             imgui.TextColored(imgui.ImVec4(0.6, 0.8, 1.0, 1.0), u8("/eurl [новый URL]"))
@@ -616,7 +710,6 @@ function imgui.OnDrawFrame()
             imgui.TextColored(imgui.ImVec4(0.2, 0.3, 0.5, 1.0), u8("Ссылки:"))
         end
         
-        -- Кнопка перехода на сайт скрипта
         if imgui.Button(u8("Страница скрипта на GitHub"), imgui.ImVec2(310, 28)) then
             openUrl("https://github.com/" .. GITHUB_REPO)
         end
@@ -656,14 +749,9 @@ function main()
     repeat wait(100) until isSampAvailable()
     wait(1000)
     
-    -- Создаем папку для конфигов
     ensureConfigDir()
-    
-    -- Загружаем данные
     loadUserLinks()
     loadColor()
-    
-    -- Применяем тему при старте
     applyColor(current_color_index)
     
     sampAddChatMessage("{00FFFF}[SkyWeb v" .. SCRIPT_VERSION .. "] {00FAAA} Скрипт активирован, для открытия - /skyweb. by Shaolin Skywalker", -1)
@@ -705,7 +793,7 @@ function main()
                     sampAddChatMessage("{00FF00}[SkyWeb] Имя изменено на: " .. edit_name, -1)
                 end
             else
-                sampAddChatMessage("{FF0000}[SkyWeb] Нет активного редактирования! Нажмите 'Изм.' рядом со ссылкой.", -1)
+                sampAddChatMessage("{FF0000}[SkyWeb] Нет активного редактирования! Нажмите ПКМ на ссылку и выберите 'Редактировать'.", -1)
             end
         else
             sampAddChatMessage("{FFFF00}[SkyWeb] Использование: /ename [новое имя]", -1)
@@ -718,7 +806,7 @@ function main()
                 edit_url = arg
                 sampAddChatMessage("{00FF00}[SkyWeb] URL изменен на: " .. edit_url, -1)
             else
-                sampAddChatMessage("{FF0000}[SkyWeb] Нет активного редактирования! Нажмите 'Изм.' рядом со ссылкой.", -1)
+                sampAddChatMessage("{FF0000}[SkyWeb] Нет активного редактирования! Нажмите ПКМ на ссылку и выберите 'Редактировать'.", -1)
             end
         else
             sampAddChatMessage("{FFFF00}[SkyWeb] Использование: /eurl [новый URL]", -1)
@@ -733,7 +821,6 @@ function main()
         cancelEdit()
     end)
     
-    -- Бесконечный цикл для поддержания работы скрипта
     while true do
         wait(1000)
     end
