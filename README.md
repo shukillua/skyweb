@@ -5,9 +5,11 @@ Skyweb - lua скрипт для SA-MP. Предназначен для откр
 
 Основное меню:
 
-<img width="325" height="301" alt="{1A240F75-888F-43B2-90CC-1E47AA5B3158}" src="https://github.com/user-attachments/assets/30ee9a10-6733-48a4-9504-eee6d23ef53b" />
+<img width="327" height="377" alt="{2FA148C5-8DA1-4EC6-9810-4C98ABA9CC12}" src="https://github.com/user-attachments/assets/95582292-7bd2-45ed-942b-2aa9940d74b9" />
+
 
 Настройки:
 
-<img width="331" height="424" alt="{4AF4F5A7-03B7-4C68-9863-551876BD058A}" src="https://github.com/user-attachments/assets/ea36e035-b8f7-413b-9b24-bbc08c6fc6d2" />
+<img width="338" height="428" alt="{33747CEA-814E-4DFC-86F0-6B9EB51323B4}" src="https://github.com/user-attachments/assets/606a8ea2-8599-4e73-82d5-3682ba395601" />
+
 
