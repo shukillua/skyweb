@@ -17,16 +17,14 @@ local main_menu = imgui.ImBool(false)
 local links = {
     {name = "YouTube", url = "https://www.youtube.com"},
     {name = "VK", url = "https://vk.com"},
-    {name = "Evolve Wiki", url = "https://wiki.evolve-rp.ru/"},
-    {name = "Форум Evolve Rp", url = "https://evolve-rp.su/"},
+    {name = "Telegram", url = "https://web.telegram.org"},
+    {name = "Discord", url = "https://discord.com"},
 }
 
 -- Предустановленные ссылки
 local preset_links = {
-    {name = "Discord", url = "https://discord.com"},
     {name = "GitHub", url = "https://www.github.com"},
     {name = "Twitch", url = "https://www.twitch.tv"},
-    {name = "Telegram", url = "https://web.telegram.org"},
     {name = "Steam", url = "https://store.steampowered.com"},
     {name = "Spotify", url = "https://open.spotify.com"},
     {name = "WhatsApp", url = "https://web.whatsapp.com"},
@@ -611,11 +609,7 @@ function main()
     loadUserLinks()
     loadColor()
     
-    sampAddChatMessage("{00FF00}==========================================", -1)
-    sampAddChatMessage("{00FF00}[SkyWeb v1.0]", -1)
-    sampAddChatMessage("{00FF00}by Shaolin Skywalker", -1)
-    sampAddChatMessage("{00FF00}Команда для открытия: /skyweb || /sw", -1)
-    sampAddChatMessage("{00FF00}==========================================", -1)
+    sampAddChatMessage("{00FFFF}[SkyWeb v1.0] {00FAAA} Скрипт активирован, для открытия - /skyweb. by Shaolin Skywalker", -1)
     
     sampRegisterChatCommand("skyweb", cmd_imgui)
     sampRegisterChatCommand("sw", cmd_imgui)
